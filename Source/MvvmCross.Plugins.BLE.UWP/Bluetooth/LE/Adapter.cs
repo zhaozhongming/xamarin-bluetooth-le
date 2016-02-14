@@ -1,50 +1,57 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Windows.Devices.Bluetooth.Advertisement;
+using Windows.Devices.Bluetooth.GenericAttributeProfile;
+using MvvmCross.Platform;
 using MvvmCross.Plugins.BLE.Bluetooth.LE;
+using MvvmCross.Plugins.BLE.Extensions;
 
 namespace MvvmCross.Plugins.BLE.UWP.Bluetooth.LE
 {
-    public class Adapter : IAdapter
+    public class Adapter : AdapterBase
     {
-        public event EventHandler<DeviceDiscoveredEventArgs> DeviceAdvertised = delegate { };
-        public event EventHandler<DeviceDiscoveredEventArgs> DeviceDiscovered = delegate { };
-        public event EventHandler<DeviceConnectionEventArgs> DeviceConnected = delegate { };
-        public event EventHandler<DeviceBondStateChangedEventArgs> DeviceBondStateChanged = delegate { };
-        public event EventHandler<DeviceConnectionEventArgs> DeviceDisconnected = delegate { };
-        public event EventHandler<DeviceConnectionEventArgs> DeviceConnectionLost = delegate { };
-        public event EventHandler<DeviceConnectionEventArgs> DeviceConnectionError = delegate { };
-        public event EventHandler ScanTimeoutElapsed = delegate { };
-        public bool IsScanning { get; }
-        public int ScanTimeout { get; set; } = 10000;
-        public IList<IDevice> DiscoveredDevices { get; } = new List<IDevice>();
-        public IList<IDevice> ConnectedDevices { get; } = new List<IDevice>();
+        private readonly BluetoothLEAdvertisementWatcher _bleWatcher = new BluetoothLEAdvertisementWatcher();
 
-        public void StartScanningForDevices()
+        public Adapter()
+        {
+            _bleWatcher.Received += BleWatcherOnReceived;
+        }
+
+        private void BleWatcherOnReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
+        {
+
+            var device = new Device(args.BluetoothAddress, args.Advertisement, args.RawSignalStrengthInDBm);
+            HandleDiscoveredDevice(device);
+        }
+
+        protected override void StartScanningForDevicesNative(Guid[] serviceUuids)
+        {
+            _bleWatcher.AdvertisementFilter.Advertisement.ServiceUuids.Clear();
+            foreach (var uuid in serviceUuids)
+            {
+                _bleWatcher.AdvertisementFilter.Advertisement.ServiceUuids.Add(uuid);
+            }
+            _bleWatcher.Start();
+        }
+
+        protected override void StopScanNative()
+        {
+            _bleWatcher.Stop();
+        }
+
+        public override void ConnectToDevice(IDevice device, bool autoconnect = false)
         {
             throw new NotImplementedException();
         }
 
-        public void StartScanningForDevices(Guid[] serviceUuids)
+        public override void CreateBondToDevice(IDevice device)
         {
             throw new NotImplementedException();
         }
 
-        public void StopScanningForDevices()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ConnectToDevice(IDevice device, bool autoconnect = false)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void CreateBondToDevice(IDevice device)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void DisconnectDevice(IDevice device)
+        public override void DisconnectDevice(IDevice device)
         {
             throw new NotImplementedException();
         }
