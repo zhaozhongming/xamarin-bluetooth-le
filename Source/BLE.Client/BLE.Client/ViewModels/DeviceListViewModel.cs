@@ -20,7 +20,7 @@ namespace BLE.Client.ViewModels
 
         private void OnDeviceDiscovered(object sender, DeviceDiscoveredEventArgs args)
         {
-            Devices.Add(args.Device);
+            InvokeOnMainThread(() => Devices.Add(args.Device));
         }
 
         public override void Start()

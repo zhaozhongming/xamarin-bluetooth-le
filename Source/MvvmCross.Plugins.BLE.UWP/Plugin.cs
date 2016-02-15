@@ -1,9 +1,9 @@
 using MvvmCross.Platform;
 using MvvmCross.Platform.Plugins;
 using MvvmCross.Plugins.BLE.Bluetooth.LE;
-using MvvmCross.Plugins.BLE.UWP.Bluetooth.LE;
+using MvvmCross.Plugins.BLE.WindowsUWP.Bluetooth.LE;
 
-namespace MvvmCross.Plugins.BLE.UWP
+namespace MvvmCross.Plugins.BLE.WindowsUWP
 {
     public class Plugin
      : IMvxPlugin

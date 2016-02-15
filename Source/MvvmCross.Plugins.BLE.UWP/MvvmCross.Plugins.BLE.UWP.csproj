@@ -7,8 +7,8 @@
     <ProjectGuid>{DF9B7710-455F-4CF4-A62F-2EC0642F4117}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>MvvmCross.Plugins.BLE.UWP</RootNamespace>
-    <AssemblyName>MvvmCross.Plugins.BLE.UWP</AssemblyName>
+    <RootNamespace>MvvmCross.Plugins.BLE.WindowsUWP</RootNamespace>
+    <AssemblyName>MvvmCross.Plugins.BLE.WindowsUWP</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
     <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
     <TargetPlatformVersion>10.0.10586.0</TargetPlatformVersion>

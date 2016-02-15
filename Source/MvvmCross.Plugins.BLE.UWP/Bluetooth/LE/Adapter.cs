@@ -1,14 +1,8 @@
 using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Windows.Devices.Bluetooth.Advertisement;
-using Windows.Devices.Bluetooth.GenericAttributeProfile;
-using MvvmCross.Platform;
 using MvvmCross.Plugins.BLE.Bluetooth.LE;
-using MvvmCross.Plugins.BLE.Extensions;
 
-namespace MvvmCross.Plugins.BLE.UWP.Bluetooth.LE
+namespace MvvmCross.Plugins.BLE.WindowsUWP.Bluetooth.LE
 {
     public class Adapter : AdapterBase
     {
