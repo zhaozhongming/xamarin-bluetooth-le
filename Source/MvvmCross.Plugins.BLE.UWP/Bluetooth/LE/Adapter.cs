@@ -1,5 +1,8 @@
 using System;
+using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
+using Windows.Devices.Bluetooth.GenericAttributeProfile;
+using Windows.Devices.Enumeration;
 using MvvmCross.Plugins.BLE.Bluetooth.LE;
 
 namespace MvvmCross.Plugins.BLE.WindowsUWP.Bluetooth.LE
@@ -10,12 +13,11 @@ namespace MvvmCross.Plugins.BLE.WindowsUWP.Bluetooth.LE
 
         public Adapter()
         {
-            _bleWatcher.Received += BleWatcherOnReceived;
         }
 
-        private void BleWatcherOnReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
+        private async void BleWatcherOnReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
         {
-
+            var dev = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
             var device = new Device(args.BluetoothAddress, args.Advertisement, args.RawSignalStrengthInDBm);
             HandleDiscoveredDevice(device);
         }
@@ -27,12 +29,14 @@ namespace MvvmCross.Plugins.BLE.WindowsUWP.Bluetooth.LE
             {
                 _bleWatcher.AdvertisementFilter.Advertisement.ServiceUuids.Add(uuid);
             }
+            _bleWatcher.Received += BleWatcherOnReceived;
             _bleWatcher.Start();
         }
 
         protected override void StopScanNative()
         {
             _bleWatcher.Stop();
+            _bleWatcher.Received -= BleWatcherOnReceived;
         }
 
         public override void ConnectToDevice(IDevice device, bool autoconnect = false)

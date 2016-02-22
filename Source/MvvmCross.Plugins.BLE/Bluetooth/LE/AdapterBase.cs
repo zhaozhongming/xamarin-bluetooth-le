@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MvvmCross.Platform;
-using MvvmCross.Plugins.BLE.Extensions;
 
 namespace MvvmCross.Plugins.BLE.Bluetooth.LE
 {
