@@ -8,7 +8,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>MvvmCross.Plugins.BLE.Droid</RootNamespace>
-    <AssemblyName>MvvmCross.Plugins.BLE.Droid</AssemblyName>
+    <AssemblyName>BLE Sample</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <AndroidResgenFile>Resources\Resource.Designer.cs</AndroidResgenFile>
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
