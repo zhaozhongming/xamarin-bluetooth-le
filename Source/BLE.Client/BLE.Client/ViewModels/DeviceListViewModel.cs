@@ -45,14 +45,14 @@ namespace BLE.Client.ViewModels
         public bool IsRefreshing => Adapter.IsScanning;
         public bool IsStateOn => _bluetoothLe.IsOn;
         public string StateText => GetStateText();
-        public DeviceListItemViewModel SelectedDevice
+        public object SelectedDevice
         {
             get { return null; }
             set
             {
                 if (value != null)
                 {
-                    HandleSelectedDevice(value);
+                    HandleSelectedDevice(value as DeviceListItemViewModel);
                 }
 
                 RaisePropertyChanged();
@@ -222,8 +222,8 @@ namespace BLE.Client.ViewModels
             _cancellationTokenSource = new CancellationTokenSource();
             RaisePropertyChanged(() => StopScanCommand);
 
+            Adapter.StartScanningForDevicesAsync(_cancellationTokenSource.Token);
             RaisePropertyChanged(() => IsRefreshing);
-            await Adapter.StartScanningForDevicesAsync(_cancellationTokenSource.Token);
         }
 
         private void CleanupCancellationToken()
@@ -286,12 +286,15 @@ namespace BLE.Client.ViewModels
                     OnCancel = tokenSource.Cancel
                 };
 
-                using (var progress = _userDialogs.Progress(config))
-                {
-                    progress.Show();
+                var progress = _userDialogs.Progress(config);
 
-                    await Adapter.ConnectToDeviceAsync(device.Device, tokenSource.Token);
-                }
+                progress.Show();
+
+                await Adapter.ConnectToDeviceAsync(device.Device, tokenSource.Token);
+
+                progress.Hide();
+                progress.Dispose();
+
 
                 _userDialogs.ShowSuccess($"Connected to {device.Device.Name}.");
 

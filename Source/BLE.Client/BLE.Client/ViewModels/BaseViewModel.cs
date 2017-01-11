@@ -5,6 +5,7 @@ using MvvmCross.Core.ViewModels;
 using MvvmCross.Platform;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
+using System.Windows.Input;
 
 namespace BLE.Client.ViewModels
 {
@@ -83,7 +84,10 @@ namespace BLE.Client.ViewModels
             }
 
             var descriptorId = parameters.Data[DescriptorIdKey];
+
             return await characteristic.GetDescriptorAsync(Guid.Parse(descriptorId));
         }
+
+        public ICommand CloseCommand => new MvxCommand(() => Close(this));
     }
 }

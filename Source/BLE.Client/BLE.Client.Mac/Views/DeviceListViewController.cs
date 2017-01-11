@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Specialized;
 using System.Collections.Generic;
 using System.Linq;
 using Foundation;
@@ -6,6 +8,11 @@ using AppKit;
 using MvvmCross.Mac.Views;
 using BLE.Client.ViewModels;
 using System.Threading.Tasks;
+using MvvmCross.Binding.BindingContext;
+using MvvmCross.Platform;
+using MvvmCross.Platform.WeakSubscription;
+using MvvmCross.Binding.ExtensionMethods;
+using BLE.Client.Mac.Views.Collections;
 
 namespace BLE.Client.Mac.Views
 {
@@ -52,19 +59,47 @@ namespace BLE.Client.Mac.Views
         {
             base.ViewDidLoad();
 
-            var vm = ViewModel as DeviceListViewModel;
+            var layout = new NSCollectionViewFlowLayout();
+            layout.ItemSize = new CoreGraphics.CGSize(200, 50);
+            layout.SectionInset = new NSEdgeInsets(10, 10, 10, 10);
+            layout.MinimumInteritemSpacing = 20;
+            layout.MinimumLineSpacing = 20;
+            DeviceCollectionView.CollectionViewLayout = layout;
+          
+            var source = new CollectionViewSoruce<DeviceItemController>(DeviceCollectionView);
 
-            vm?.RefreshCommand.Execute();
+            DeviceCollectionView.DataSource = source;
 
-            while (true)
+            var collectionDeleagte = new CollectionViewDelegate(source);
+            DeviceCollectionView.Delegate = collectionDeleagte;
+
+            var set = this.CreateBindingSet<DeviceListViewController, DeviceListViewModel>();
+            set.Bind(ScanButton).To(vm => vm.RefreshCommand);
+            set.Bind(this).For(t => t.ShouldAnimateProgress).To(vm => vm.IsRefreshing);
+            set.Bind(source).For(s => s.ItemsSource).To(vm => vm.Devices);
+            //set.Bind(collectionDeleagte).For(d => d.SelectedItem).To(vm => vm.SelectedDevice).OneWayToSource();
+            set.Apply();
+
+            collectionDeleagte.SelectedItemChanged += (sender, e) =>
             {
-                await Task.Delay(1000);
-                vm?.RefreshCommand.Execute();
-                await Task.Delay(5000);
+                ((DeviceListViewModel)ViewModel).SelectedDevice = collectionDeleagte.SelectedItem;//DeviceLis;
+            };
+        }
+
+        public bool ShouldAnimateProgress
+        {
+            set
+            {
+                if (value)
+                {
+                    ProgressIndicator.StartAnimation(this);
+                }
+                else
+                {
+                    ProgressIndicator.StopAnimation(this);
+                }
             }
-
-
-
+            get { return true; }
         }
     }
 }

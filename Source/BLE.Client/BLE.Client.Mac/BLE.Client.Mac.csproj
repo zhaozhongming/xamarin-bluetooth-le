@@ -110,6 +110,7 @@
   <ItemGroup>
     <Folder Include="Resources\" />
     <Folder Include="Views\" />
+    <Folder Include="Views\Collections\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Info.plist" />
@@ -132,10 +133,40 @@
     <Compile Include="Views\DeviceListViewController.designer.cs">
       <DependentUpon>DeviceListViewController.cs</DependentUpon>
     </Compile>
+    <Compile Include="Views\DeviceItem.cs" />
+    <Compile Include="Views\DeviceItemController.cs" />
+    <Compile Include="Views\DeviceItem.designer.cs">
+      <DependentUpon>DeviceItem.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Views\DeviceItemController.designer.cs">
+      <DependentUpon>DeviceItemController.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserDialogsImpl.cs" />
+    <Compile Include="Views\Collections\CollectionViewSource.cs" />
+    <Compile Include="Views\Collections\CollectionViewDelegate.cs" />
+    <Compile Include="Views\CharacteristicListView.cs" />
+    <Compile Include="Views\CharacteristicListViewController.cs" />
+    <Compile Include="Views\CharacteristicListView.designer.cs">
+      <DependentUpon>CharacteristicListView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Views\CharacteristicListViewController.designer.cs">
+      <DependentUpon>CharacteristicListViewController.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Views\ServiceListView.cs" />
+    <Compile Include="Views\ServiceListViewController.cs" />
+    <Compile Include="Views\ServiceListView.designer.cs">
+      <DependentUpon>ServiceListView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Views\ServiceListViewController.designer.cs">
+      <DependentUpon>ServiceListViewController.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <InterfaceDefinition Include="Main.storyboard" />
     <InterfaceDefinition Include="Views\DeviceListView.xib" />
+    <InterfaceDefinition Include="Views\DeviceItem.xib" />
+    <InterfaceDefinition Include="Views\CharacteristicListView.xib" />
+    <InterfaceDefinition Include="Views\ServiceListView.xib" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BLE.Client\BLE.Client.csproj">
@@ -150,6 +181,9 @@
       <Project>{F479F7DB-CFA6-49E5-AA41-4FE6A4DA39B0}</Project>
       <Name>Plugin.BLE.Abstractions</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <BundleResource Include="Resources\.DS_Store" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Mac\Xamarin.Mac.CSharp.targets" />
 </Project>

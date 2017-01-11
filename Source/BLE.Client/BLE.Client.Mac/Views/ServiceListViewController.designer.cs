@@ -1,4 +1,4 @@
-﻿// WARNING
+// WARNING
 //
 // This file has been generated automatically by Xamarin Studio to store outlets and
 // actions made in the UI designer. If it is removed, they will be lost.
@@ -9,12 +9,18 @@ using System.CodeDom.Compiler;
 
 namespace BLE.Client.Mac.Views
 {
-	[Register ("DeviceListView")]
-	partial class DeviceListView
+	[Register ("ServiceListViewController")]
+	partial class ServiceListViewController
 	{
+		[Outlet]
+		AppKit.NSButton BackButton { get; set; }
 		
 		void ReleaseDesignerOutlets ()
 		{
+			if (BackButton != null) {
+				BackButton.Dispose ();
+				BackButton = null;
+			}
 		}
 	}
 }
