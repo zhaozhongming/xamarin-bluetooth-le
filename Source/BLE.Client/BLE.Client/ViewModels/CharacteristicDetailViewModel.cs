@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Acr.UserDialogs;
@@ -13,15 +14,30 @@ namespace BLE.Client.ViewModels
 {
     public class CharacteristicDetailViewModel : BaseViewModel
     {
+        const string wid = "00031234-0000-1000-8000-00805F9B0131";
+        static readonly Guid wguid = new Guid(wid);
+
         private readonly IUserDialogs _userDialogs;
         private bool _updatesStarted;
+        private IService _service;
         public ICharacteristic Characteristic { get; private set; }
 
-        public string CharacteristicValue => Characteristic?.Value.ToHexString().Replace("-", " ");
+        private IList<ICharacteristic> _characteristics;
+
+        public IList<ICharacteristic> Characteristics
+        {
+            get { return _characteristics; }
+            private set { SetProperty(ref _characteristics, value); }
+        }
+        public ICharacteristic CharacteristicWrite { get; private set; }
+
+        public string CharacteristicValue => Characteristic?.Value.ToHexString().Replace("-", " ");//new string(Encoding.UTF8.GetChars(Characteristic?.Value));//
 
         public ObservableCollection<string> Messages { get; } = new ObservableCollection<string>();
 
         public string UpdateButtonText => _updatesStarted ? "Stop updates" : "Start updates";
+
+        public string ConsoleText { get; private set; }
 
         public string Permissions
         {
@@ -46,6 +62,8 @@ namespace BLE.Client.ViewModels
             base.InitFromBundle(parameters);
 
             Characteristic = await GetCharacteristicFromBundleAsync(parameters);
+
+            _service = await GetServiceFromBundleAsync(parameters);
         }
 
         public override void Resume()
@@ -119,7 +137,12 @@ namespace BLE.Client.ViewModels
                 var data = GetBytes(result.Text);
 
                 _userDialogs.ShowLoading("Write characteristic value");
-                await Characteristic.WriteAsync(data);
+
+                Characteristics = await _service.GetCharacteristicsAsync();
+
+                CharacteristicWrite = Characteristics.Where(x => x.Id == wguid).FirstOrDefault();
+
+                await CharacteristicWrite.WriteAsync(data);
                 _userDialogs.HideLoading();
 
                 RaisePropertyChanged(() => CharacteristicValue);
@@ -135,7 +158,8 @@ namespace BLE.Client.ViewModels
 
         private static byte[] GetBytes(string text)
         {
-            return text.Split(' ').Where(token => !string.IsNullOrEmpty(token)).Select(token => Convert.ToByte(token, 16)).ToArray();
+            //return text.Split(' ').Where(token => !string.IsNullOrEmpty(token)).Select(token => Convert.ToByte(token, 16)).ToArray();
+            return System.Text.Encoding.UTF8.GetBytes(text);
         }
 
         public MvxCommand ToggleUpdatesCommand => new MvxCommand((() =>
@@ -194,8 +218,11 @@ namespace BLE.Client.ViewModels
 
         private void CharacteristicOnValueUpdated(object sender, CharacteristicUpdatedEventArgs characteristicUpdatedEventArgs)
         {
-            Messages.Insert(0, $"Updated value: {CharacteristicValue}");
-            RaisePropertyChanged(() => CharacteristicValue);
+            string dataString = new string(Encoding.UTF8.GetChars(Characteristic?.Value));
+            dataString = dataString.Replace("\r", "\r\n");
+            ConsoleText += dataString;
+
+            RaisePropertyChanged(() => ConsoleText);
         }
     }
 }
