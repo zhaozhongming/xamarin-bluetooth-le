@@ -41,6 +41,8 @@
     </Compile>
     <Compile Include="Converters\InverseBooleanValueConverter.cs" />
     <Compile Include="Extensions\IUserDialogsExtensions.cs" />
+    <Compile Include="Helpers\FlowCom3000Command.cs" />
+    <Compile Include="Helpers\Protocol.cs" />
     <Compile Include="Helpers\Settings.cs" />
     <Compile Include="Pages\BasePage.cs" />
     <Compile Include="Pages\BaseTabbedPage.cs" />

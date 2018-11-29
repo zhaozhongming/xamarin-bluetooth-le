@@ -9,12 +9,42 @@ using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
 using Plugin.BLE.Abstractions.EventArgs;
 using Plugin.BLE.Abstractions.Extensions;
+using BLE.Client.Helpers;
 
 namespace BLE.Client.ViewModels
 {
     public class CharacteristicDetailViewModel : BaseViewModel
     {
-        const string wid = "00031234-0000-1000-8000-00805F9B0131";
+        #region 3000
+        protected byte address = 0x00;
+
+        public static readonly byte RXMODE = 0x70; 
+        public static readonly byte TXMODE = 0x68;
+
+        public static readonly byte NUL = 0x00;
+        public static readonly byte STX = 0x02;
+        public static readonly byte ETX = 0x03;
+        public static readonly byte EOT = 0x04;
+        public static readonly byte ENQ = 0x05;
+        public static readonly byte ACK = 0x06;
+        public static readonly byte CR = 0x0D;
+        public static readonly byte DC1 = 0x11;
+        public static readonly byte DC2 = 0x12;
+        public static readonly byte NAK = 0x15;
+        public static readonly byte ESC = 0x1B;
+
+
+        public static readonly byte PUT_RELEASE = 0x8d;
+        public static readonly byte PUT_DATA = 0x85;
+
+        public static readonly byte PUT_TRANSACTION_RESULT = 0x88;
+
+
+        #endregion
+        //const string wid = "00031234-0000-1000-8000-00805F9B0131";
+        //const string wid = "49535343-8841-43F4-A8D4-ECBE34729BB3";//taobao bluetooth HC-02
+        const string wid = "0000ffe1-0000-1000-8000-00805f9b34fb";//taobao bluetooth HC-42
+
         static readonly Guid wguid = new Guid(wid);
 
         private readonly IUserDialogs _userDialogs;
@@ -134,7 +164,12 @@ namespace BLE.Client.ViewModels
                 if (!result.Ok)
                     return;
 
-                var data = GetBytes(result.Text);
+                var cmd = GetBytes(result.Text);
+               
+                var data = createHeader(TXMODE, PUT_TRANSACTION_RESULT);//GetBytes(result.Text);
+
+                data = cmd;//for s8
+
 
                 _userDialogs.ShowLoading("Write characteristic value");
 
@@ -158,8 +193,9 @@ namespace BLE.Client.ViewModels
 
         private static byte[] GetBytes(string text)
         {
-            //return text.Split(' ').Where(token => !string.IsNullOrEmpty(token)).Select(token => Convert.ToByte(token, 16)).ToArray();
-            return System.Text.Encoding.UTF8.GetBytes(text);
+            return text.Split(' ').Where(token => !string.IsNullOrEmpty(token)).Select(token => Convert.ToByte(token, 16)).ToArray();
+            //return System.Text.Encoding.UTF8.GetBytes(text);
+            //return System.Text.Encoding.Unicode.GetBytes(text);
         }
 
         public MvxCommand ToggleUpdatesCommand => new MvxCommand((() =>
@@ -219,10 +255,25 @@ namespace BLE.Client.ViewModels
         private void CharacteristicOnValueUpdated(object sender, CharacteristicUpdatedEventArgs characteristicUpdatedEventArgs)
         {
             string dataString = new string(Encoding.UTF8.GetChars(Characteristic?.Value));
-            dataString = dataString.Replace("\r", "\r\n");
+
+            string dataString2 = new string(Encoding.Unicode.GetChars(Characteristic?.Value));
+
+            string dataString3 = new string(Encoding.BigEndianUnicode.GetChars(Characteristic?.Value));
+
+            dataString = dataString.Replace("\r", "\r\n");// + dataString3.Replace("\r", "\r\n");
             ConsoleText += dataString;
 
             RaisePropertyChanged(() => ConsoleText);
+        }
+
+        private byte[] createHeader(byte mode, byte opcode)
+        {
+            byte[] header = new byte[4];
+            header[0] = EOT;
+            header[1] = (byte)(mode | this.address);
+            header[2] = opcode;
+            header[3] = ENQ;
+            return header;
         }
     }
 }
