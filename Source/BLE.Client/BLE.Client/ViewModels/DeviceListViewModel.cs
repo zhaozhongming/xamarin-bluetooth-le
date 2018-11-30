@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Acr.UserDialogs;
@@ -60,6 +61,32 @@ namespace BLE.Client.ViewModels
             }
         }
 
+        #region 3000
+        protected byte address = 0x00;
+
+        public static readonly byte RXMODE = 0x70;
+        public static readonly byte TXMODE = 0x68;
+
+        public static readonly byte NUL = 0x00;
+        public static readonly byte STX = 0x02;
+        public static readonly byte ETX = 0x03;
+        public static readonly byte EOT = 0x04;
+        public static readonly byte ENQ = 0x05;
+        public static readonly byte ACK = 0x06;
+        public static readonly byte CR = 0x0D;
+        public static readonly byte DC1 = 0x11;
+        public static readonly byte DC2 = 0x12;
+        public static readonly byte NAK = 0x15;
+        public static readonly byte ESC = 0x1B;
+
+
+        public static readonly byte PUT_RELEASE = 0x8d;
+        public static readonly byte PUT_DATA = 0x85;
+
+        public static readonly byte PUT_TRANSACTION_RESULT = 0x88;
+
+        #endregion
+
         bool _useAutoConnect;
         public bool UseAutoConnect
         {
@@ -78,8 +105,40 @@ namespace BLE.Client.ViewModels
             }
         }
 
+        public string ConsoleText { get; private set; }
+
+        public IList<IService> Services { get; private set; }
+
+        const string serviceidHC = "0000ffe0-0000-1000-8000-00805f9b34fb";//taobeo HC-42
+        static readonly Guid serviceguidHC = new Guid(serviceidHC);
+        const string cidHC = "0000ffe1-0000-1000-8000-00805f9b34fb";//taobao bluetooth HC-42
+        static readonly Guid wguid = new Guid(cidHC);
+
+        const string serviceidBLE = "0000ffe0-0000-1000-8000-00805f9b34fb";//taobeo HC-42
+        static readonly Guid serviceguidBLE = new Guid(serviceidBLE);
+        const string cidBLE = "00031234-0000-1000-8000-00805F9B0130";//ble
+        static readonly Guid cguidBLE = new Guid(cidBLE);
+        const string widBLE = "00031234-0000-1000-8000-00805F9B0131";//ble
+        static readonly Guid wguidBLE = new Guid(widBLE);
+
+        private IService _service;
+
+        public ICharacteristic Characteristic { get; private set; }
+
+        private IList<ICharacteristic> _characteristics;
+
+        public IList<ICharacteristic> Characteristics
+        {
+            get { return _characteristics; }
+            private set { SetProperty(ref _characteristics, value); }
+        }
+        public ICharacteristic CharacteristicWrite { get; private set; }
+
+        public string CharacteristicValue => Characteristic?.Value.ToHexString().Replace("-", " ");//new string(Encoding.UTF8.GetChars(Characteristic?.Value));//
+
         public MvxCommand StopScanCommand => new MvxCommand(() =>
         {
+            ConsoleOutput("stop scanning.... ");
             _cancellationTokenSource.Cancel();
             CleanupCancellationToken();
             RaisePropertyChanged(() => IsRefreshing);
@@ -162,22 +221,7 @@ namespace BLE.Client.ViewModels
             AddOrUpdateDevice(args.Device);
         }
 
-        private void AddOrUpdateDevice(IDevice device)
-        {
-            InvokeOnMainThread(() =>
-            {
-                var vm = Devices.FirstOrDefault(d => d.Device.Id == device.Id);
-                if (vm != null)
-                {
-                    vm.Update();
-                }
-                else
-                {
-                    Devices.Add(new DeviceListItemViewModel(device));
-                }
-            });
-        }
-
+     
         public override async void Resume()
         {
             base.Resume();
@@ -246,6 +290,8 @@ namespace BLE.Client.ViewModels
 
         private async void ScanForDevices()
         {
+            ConsoleOutput("start scanning devices.....");
+
             Devices.Clear();
 
             foreach (var connectedDevice in Adapter.ConnectedDevices)
@@ -392,6 +438,25 @@ namespace BLE.Client.ViewModels
             }
         }
 
+        private async Task<bool> ConnectDeviceAsyncSliently(IDevice device)
+        {
+            try
+            {
+                CancellationTokenSource tokenSource = new CancellationTokenSource();
+
+                await Adapter.ConnectToDeviceAsync(device, new ConnectParameters(autoConnect: UseAutoConnect, forceBleTransport: false), tokenSource.Token);
+
+                ConsoleOutput(device.Name + " device connected.");
+                return true;
+
+            }
+            catch (Exception ex)
+            {
+                Mvx.Trace(ex.Message);
+                return false;
+            }
+        }
+
 
         public MvxCommand ConnectToPreviousCommand => new MvxCommand(ConnectToPreviousDeviceAsync, CanConnectToPrevious);
 
@@ -497,5 +562,131 @@ namespace BLE.Client.ViewModels
         {
             PreviousGuid = device.Id;
         });
+
+        private void ConsoleOutput(string msg)
+        {
+            ConsoleText += msg + "\r\n";
+            RaisePropertyChanged(() => ConsoleText);
+        }
+
+
+        private async Task<bool> LoadServices(IDevice device)
+        {
+            try
+            {
+                Services = await device.GetServicesAsync();
+                ConsoleOutput("services are loaded.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ConsoleOutput("services failed to load.");                
+                Mvx.Trace(ex.Message);
+                return false;
+            }
+        }
+
+        private void CharacteristicOnValueUpdated(object sender, CharacteristicUpdatedEventArgs characteristicUpdatedEventArgs)
+        {
+            string dataString = new string(Encoding.UTF8.GetChars(Characteristic?.Value));
+            ConsoleOutput(dataString);
+        }
+
+        private byte[] createHeader(byte mode, byte opcode)
+        {
+            byte[] header = new byte[4];
+            header[0] = EOT;
+            header[1] = (byte)(mode | this.address);
+            header[2] = opcode;
+            header[3] = ENQ;
+            return header;
+        }
+
+
+        private static byte[] GetBytesForUTF8(string text)
+        {
+            //return text.Split(' ').Where(token => !string.IsNullOrEmpty(token)).Select(token => Convert.ToByte(token, 16)).ToArray();
+            return System.Text.Encoding.UTF8.GetBytes(text);
+            //return System.Text.Encoding.Unicode.GetBytes(text);
+        }
+
+        private static byte[] GetBytesForHEX(string text)
+        {
+            return text.Split(' ').Where(token => !string.IsNullOrEmpty(token)).Select(token => Convert.ToByte(token, 16)).ToArray();
+            //return System.Text.Encoding.UTF8.GetBytes(text);
+            //return System.Text.Encoding.Unicode.GetBytes(text);
+        }
+
+
+        private async void AddOrUpdateDevice(IDevice device)
+        {
+            if (device != null && device.Name != null
+                && (device.Name.Contains("HC") || device.Name.Contains("BLE")))
+            {
+                InvokeOnMainThread(() =>
+                {
+                    var vm = Devices.FirstOrDefault(d => d.Device.Id == device.Id);
+                    if (vm != null)
+                    {
+                        vm.Update();
+                    }
+                    else
+                    {
+                        Devices.Add(new DeviceListItemViewModel(device));
+                        ConsoleOutput("find devices " + device.Name);
+                    }
+                });
+
+                StopScanCommand.Execute();
+
+                if (await ConnectDeviceAsyncSliently(device))
+                {
+                    if (await LoadServices(device))
+                    {
+                        if (device.Name.Contains("HC"))
+                        {
+                            _service = await device.GetServiceAsync(serviceguidHC);
+
+                            Characteristic = await _service.GetCharacteristicAsync(wguid);//notify
+
+                            CharacteristicWrite = await _service.GetCharacteristicAsync(wguid);//write
+                        }
+
+                        if (device.Name.Contains("BLE"))
+                        {
+                            _service = await device.GetServiceAsync(serviceguidBLE);
+
+                            Characteristic = await _service.GetCharacteristicAsync(cguidBLE);//notify
+
+                            CharacteristicWrite = await _service.GetCharacteristicAsync(wguidBLE);//write
+                        }
+
+                        ConsoleOutput("get characteristics successfully.");
+
+                        Characteristic.ValueUpdated -= CharacteristicOnValueUpdated;
+                        Characteristic.ValueUpdated += CharacteristicOnValueUpdated;
+
+                        
+                        await Characteristic.StartUpdatesAsync();
+
+                        ConsoleOutput("start getting notification from notify characteristics.");
+
+
+                        //sending command
+
+                        var cmd = GetBytesForUTF8("L");
+
+                        var data = createHeader(TXMODE, PUT_TRANSACTION_RESULT);//GetBytes(result.Text);
+
+                        data = cmd;//for s8
+
+                        await CharacteristicWrite.WriteAsync(data);
+
+                        ConsoleOutput("sent command");
+                    }
+                }
+            }
+        }
+
     }
 }
