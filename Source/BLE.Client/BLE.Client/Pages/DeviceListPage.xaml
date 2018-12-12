@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:pages="clr-namespace:BLE.Client.Pages;assembly=BLE.Client"
              x:Class="BLE.Client.Pages.DeviceListPage"
-             Title="Discover devices"
+             Title="{Binding SelectedModelTypeName}"
              x:Name="DevicePage">
   <pages:BaseTabbedPage.Resources>
     <ResourceDictionary>
@@ -40,28 +40,20 @@
       </ResourceDictionary>
   </pages:BaseTabbedPage.Resources>
   <pages:BaseTabbedPage.Children>
-    <pages:BasePage Title="Scan for devices">
+    <pages:BasePage Title="Reading">
       <Grid>
         <Grid.RowDefinitions>
-          <RowDefinition Height="Auto"></RowDefinition>
-          <RowDefinition Height="*"></RowDefinition>
+          <RowDefinition Height="40"></RowDefinition>
+          <RowDefinition Height="50"></RowDefinition>
           <RowDefinition Height="Auto"></RowDefinition>
         </Grid.RowDefinitions>
-        <StackLayout BackgroundColor="#FF6969" Padding="10" IsVisible="{Binding IsStateOn, Converter={StaticResource InverseBoolean}}">
-          <Label Text="{Binding StateText}" FontSize="18" HorizontalTextAlignment="Center"></Label>
-        </StackLayout>
-
-        <ListView Grid.Row="1" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
-                 IsPullToRefreshEnabled="True"
-                 RefreshCommand="{Binding RefreshCommand}"
-                 IsRefreshing="{Binding IsRefreshing, Mode=OneWay}"
-                 RowHeight="80"
-                 ItemTemplate="{StaticResource DeviceItemTemplate}">
-        </ListView>
-
-        <StackLayout Grid.Row="2" Orientation="Horizontal">
-          <Button Text="Start Scan" Command="{Binding RefreshCommand}" HorizontalOptions="End"/>
-          <Button Text="Stop Scan" Command="{Binding StopScanCommand}" HorizontalOptions="End"/>
+        <Label Grid.Row="0" Text="{Binding Reading, StringFormat='Reading: {0}'}"
+             FontSize="Large" TextColor="#ff0000" VerticalTextAlignment="Center"
+             HorizontalTextAlignment="Center"></Label>
+        
+        <StackLayout Grid.Row="1" Orientation="Horizontal">
+          <Button Text="Get Reading" Command="{Binding ConnectKnownCommand}" HorizontalOptions="End"/>
+          <Button Text="Disconnect" Command="{Binding DisconnectKnownCommandSliently}" HorizontalOptions="End"/>
           <ActivityIndicator IsRunning="{Binding IsRefreshing}"
                              HeightRequest="24"
                              WidthRequest="24"
@@ -70,10 +62,28 @@
         </StackLayout>
 
 
-        <ScrollView Orientation="Vertical"  Grid.Row="3">
+        <ScrollView Orientation="Vertical"  Grid.Row="2">
           <Label Text="{Binding ConsoleText, StringFormat='{0}'}" />
         </ScrollView>
 
+      </Grid>
+    </pages:BasePage>
+    <pages:BasePage Title="DEBUG CONSOLE">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*"></RowDefinition>
+        </Grid.RowDefinitions>
+        <StackLayout BackgroundColor="#FF6969" Padding="10" IsVisible="{Binding IsStateOn, Converter={StaticResource InverseBoolean}}">
+          <Label Text="{Binding StateText}" FontSize="18" HorizontalTextAlignment="Center"></Label>
+        </StackLayout>
+
+        <ListView Grid.Row="0" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+                 IsPullToRefreshEnabled="True"
+                 RefreshCommand="{Binding RefreshCommand}"
+                 IsRefreshing="{Binding IsRefreshing, Mode=OneWay}"
+                 RowHeight="60"
+                 ItemTemplate="{StaticResource DeviceItemTemplate}">
+        </ListView>
       </Grid>
     </pages:BasePage>
   </pages:BaseTabbedPage.Children>

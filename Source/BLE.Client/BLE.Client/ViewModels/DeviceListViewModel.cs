@@ -38,11 +38,17 @@ namespace BLE.Client.ViewModels
             }
         }
 
+        private Guid knownId = new Guid("00000000-0000-0000-0000-cc81d47f7569 ");
+
         public MvxCommand RefreshCommand => new MvxCommand(() => TryStartScanning(true));
         public MvxCommand<DeviceListItemViewModel> DisconnectCommand => new MvxCommand<DeviceListItemViewModel>(DisconnectDevice);
 
+        public MvxCommand DisconnectKnownCommandSliently => new MvxCommand(DisconnectKnownDeviceSliently);
+        
+        public MvxCommand ConnectKnownCommand => new MvxCommand(GetReadings);
+        
         public MvxCommand<DeviceListItemViewModel> ConnectDisposeCommand => new MvxCommand<DeviceListItemViewModel>(ConnectAndDisposeDevice);
-
+        
         public ObservableCollection<DeviceListItemViewModel> Devices { get; set; } = new ObservableCollection<DeviceListItemViewModel>();
         public bool IsRefreshing => Adapter.IsScanning;
         public bool IsStateOn => _bluetoothLe.IsOn;
@@ -107,6 +113,8 @@ namespace BLE.Client.ViewModels
 
         public string ConsoleText { get; private set; }
 
+        private IDevice knownDevice { get; set; }
+
         public IList<IService> Services { get; private set; }
 
         const string serviceidHC = "0000ffe0-0000-1000-8000-00805f9b34fb";//taobeo HC-42
@@ -121,6 +129,7 @@ namespace BLE.Client.ViewModels
         const string widBLE = "00031234-0000-1000-8000-00805F9B0131";//ble
         static readonly Guid wguidBLE = new Guid(widBLE);
 
+        public float Reading { get; set; }
         private IService _service;
 
         public ICharacteristic Characteristic { get; private set; }
@@ -153,6 +162,12 @@ namespace BLE.Client.ViewModels
             _userDialogs = userDialogs;
             _settings = settings;
             // quick and dirty :>
+            _bluetoothLe.StateChanged -= OnStateChanged;
+            Adapter.DeviceDiscovered -= OnDeviceDiscovered;
+            Adapter.ScanTimeoutElapsed -= Adapter_ScanTimeoutElapsed;
+            Adapter.DeviceDisconnected -= OnDeviceDisconnected;
+            Adapter.DeviceConnectionLost -= OnDeviceConnectionLost;
+
             _bluetoothLe.StateChanged += OnStateChanged;
             Adapter.DeviceDiscovered += OnDeviceDiscovered;
             Adapter.ScanTimeoutElapsed += Adapter_ScanTimeoutElapsed;
@@ -160,6 +175,29 @@ namespace BLE.Client.ViewModels
             Adapter.DeviceConnectionLost += OnDeviceConnectionLost;
             //Adapter.DeviceConnected += (sender, e) => Adapter.DisconnectDeviceAsync(e.Device);
 
+        }
+
+        public override void ViewDisappearing()
+        {
+            DisconnectKnownDeviceSliently();
+        }
+
+        protected override void InitFromBundle(IMvxBundle parameters)
+        {
+            base.InitFromBundle(parameters);
+
+            SelectedModelType = GetSelectedModelTypeFromBundle(parameters);
+        }
+
+        protected ModelType GetSelectedModelTypeFromBundle(IMvxBundle parameters)
+        {
+            if (!parameters.Data.ContainsKey(ModelTypeKey)) return ModelType.Flowcom3000;
+            var modelType = parameters.Data[ModelTypeKey];
+
+            if (modelType.Equals(ModelType.Flowcom3000.ToString()))
+                return ModelType.Flowcom3000;
+            else
+                return ModelType.FlowcomS8;
         }
 
         private Task GetPreviousGuidAsync()
@@ -218,7 +256,12 @@ namespace BLE.Client.ViewModels
 
         private void OnDeviceDiscovered(object sender, DeviceEventArgs args)
         {
-            AddOrUpdateDevice(args.Device);
+            if (args.Device != null && args.Device.Name != null
+                && (args.Device.Name.Contains("HC") || args.Device.Name.Contains("BLE")))
+            {
+                StopScanCommand.Execute();
+                AddOrUpdateDevice(args.Device);
+            }
         }
 
      
@@ -320,8 +363,11 @@ namespace BLE.Client.ViewModels
 
         private void CleanupCancellationToken()
         {
-            _cancellationTokenSource.Dispose();
-            _cancellationTokenSource = null;
+            if (_cancellationTokenSource != null)
+            {
+                _cancellationTokenSource.Dispose();
+                _cancellationTokenSource = null;
+            }
             RaisePropertyChanged(() => StopScanCommand);
         }
 
@@ -344,6 +390,48 @@ namespace BLE.Client.ViewModels
             {
                 device.Update();
                 _userDialogs.HideLoading();
+            }
+        }
+
+        private async void DisconnectKnownDeviceSliently()
+        {
+            try
+            { 
+                foreach (DeviceListItemViewModel cDevice in Devices)
+                {
+                    try
+                    {
+                        if (!cDevice.IsConnected)
+                            return;
+                        ConsoleOutput("Disconnect divice - " + cDevice.Name);
+                        await Adapter.DisconnectDeviceAsync(cDevice.Device);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        ConsoleOutput("Disconnect divice error: " + ex.Message);
+                    }
+                    finally
+                    {
+                        cDevice.Update();
+                    }
+                }
+
+                if (knownDevice != null && (knownDevice.State.Equals(DeviceState.Connected) || knownDevice.State.Equals(DeviceState.Limited)))
+                {
+                    await Adapter.DisconnectDeviceAsync(knownDevice);
+
+                    ConsoleOutput("Disconnect divice - " + knownDevice.Name);
+                }
+
+                foreach (var connectedDevice in Adapter.ConnectedDevices)
+                {
+                    await Adapter.DisconnectDeviceAsync(connectedDevice);
+                }
+            }
+            catch (Exception ex)
+            {
+                ConsoleOutput("Disconnect divice error: " + ex.Message);
             }
         }
 
@@ -381,7 +469,7 @@ namespace BLE.Client.ViewModels
                 {
                     if (await ConnectDeviceAsync(device))
                     {
-                        ShowViewModel<ServiceListViewModel>(new MvxBundle(new Dictionary<string, string> { { DeviceIdKey, device.Device.Id.ToString() } }));
+                        //ShowViewModel<ServiceListViewModel>(new MvxBundle(new Dictionary<string, string> { { DeviceIdKey, device.Device.Id.ToString() } }));
                     }
                 });
 
@@ -421,7 +509,12 @@ namespace BLE.Client.ViewModels
 
                 _userDialogs.ShowSuccess($"Connected to {device.Device.Name}.");
 
+                ConsoleOutput("Connected to " + device.Device.Name);
+
                 PreviousGuid = device.Device.Id;
+
+                //knownDevice = device.Device;
+
                 return true;
 
             }
@@ -457,11 +550,76 @@ namespace BLE.Client.ViewModels
             }
         }
 
+        private async void GetReadings()
+        {
+            bool alreadyConnected = false;
+
+            if (Devices != null && Devices.Count > 0)
+            {
+                knownId = Devices.OrderBy(i => i.Rssi).Last().Id;
+
+                IEnumerable<DeviceListItemViewModel> di = Devices.Where(r => r.IsConnected);
+                if (di != null && di.Count() > 0)
+                {
+                    DeviceListItemViewModel alreadyConnectedDevice = di.First();
+                    if (alreadyConnectedDevice != null)
+                    {
+                        alreadyConnected = true;
+                        knownId = alreadyConnectedDevice.Id;
+                        knownDevice = alreadyConnectedDevice.Device;
+                    }
+                }
+            }
+            
+            if (!alreadyConnected)
+            {
+                CancellationTokenSource tokenSource = new CancellationTokenSource();
+
+                knownDevice = await Adapter.ConnectToKnownDeviceAsync(knownId, new ConnectParameters(autoConnect: UseAutoConnect, forceBleTransport: false), tokenSource.Token);
+
+                ConsoleOutput(knownDevice.Name + " device connected.");
+            }
+
+            if (await LoadServices(knownDevice))
+            {
+                if (knownDevice.Name.Contains("HC"))
+                {
+                    _service = await knownDevice.GetServiceAsync(serviceguidHC);
+
+                    Characteristic = await _service.GetCharacteristicAsync(wguid);//notify
+
+                    CharacteristicWrite = await _service.GetCharacteristicAsync(wguid);//write
+                }
+
+                if (knownDevice.Name.Contains("BLE"))
+                {
+                    _service = await knownDevice.GetServiceAsync(serviceguidBLE);
+
+                    Characteristic = await _service.GetCharacteristicAsync(cguidBLE);//notify
+
+                    CharacteristicWrite = await _service.GetCharacteristicAsync(wguidBLE);//write
+                }
+
+                ConsoleOutput("get characteristics successfully.");
+
+                Characteristic.ValueUpdated -= CharacteristicOnValueUpdated;
+                Characteristic.ValueUpdated += CharacteristicOnValueUpdated;
+
+
+                await Characteristic.StartUpdatesAsync();
+
+                ConsoleOutput("start getting notification from notify characteristics.");
+
+                SendCommand();
+            }
+        }
 
         public MvxCommand ConnectToPreviousCommand => new MvxCommand(ConnectToPreviousDeviceAsync, CanConnectToPrevious);
 
         private async void ConnectToPreviousDeviceAsync()
         {
+            //00000000-0000-0000-0000-cc81d47f7569 
+
             IDevice device;
             try
             {
@@ -554,8 +712,8 @@ namespace BLE.Client.ViewModels
         private void OnDeviceDisconnected(object sender, DeviceEventArgs e)
         {
             Devices.FirstOrDefault(d => d.Id == e.Device.Id)?.Update();
-            _userDialogs.HideLoading();
-            _userDialogs.Toast($"Disconnected {e.Device.Name}");
+            //_userDialogs.HideLoading();
+            //_userDialogs.Toast($"Disconnected {e.Device.Name}");
         }
 
         public MvxCommand<DeviceListItemViewModel> CopyGuidCommand => new MvxCommand<DeviceListItemViewModel>(device =>
@@ -574,7 +732,8 @@ namespace BLE.Client.ViewModels
         {
             try
             {
-                Services = await device.GetServicesAsync();
+                if (Services == null || Services.Count == 0)
+                    Services = await device.GetServicesAsync();
                 ConsoleOutput("services are loaded.");
                 return true;
             }
@@ -589,6 +748,7 @@ namespace BLE.Client.ViewModels
         private void CharacteristicOnValueUpdated(object sender, CharacteristicUpdatedEventArgs characteristicUpdatedEventArgs)
         {
             string dataString = new string(Encoding.UTF8.GetChars(Characteristic?.Value));
+            dataString = "DATA: " + dataString.Replace("\r", "\r\n");// + dataString3.Replace("\r", "\r\n");
             ConsoleOutput(dataString);
         }
 
@@ -617,7 +777,28 @@ namespace BLE.Client.ViewModels
             //return System.Text.Encoding.Unicode.GetBytes(text);
         }
 
+        private async void SendCommand()
+        {
+            //sending command
+            byte[] cmd = new byte[] { };
 
+            switch (SelectedModelType)
+            {
+                case ModelType.Flowcom3000:
+                    cmd = createHeader(TXMODE, PUT_TRANSACTION_RESULT);//GetBytes(result.Text);
+
+                    await CharacteristicWrite.WriteAsync(cmd);
+                    break;
+                case ModelType.FlowcomS8:
+                    cmd = GetBytesForUTF8("L");
+
+                    await CharacteristicWrite.WriteAsync(cmd);
+
+                    break;
+            }
+
+            ConsoleOutput("command sent");
+        }
         private async void AddOrUpdateDevice(IDevice device)
         {
             if (device != null && device.Name != null
@@ -636,55 +817,6 @@ namespace BLE.Client.ViewModels
                         ConsoleOutput("find devices " + device.Name);
                     }
                 });
-
-                StopScanCommand.Execute();
-
-                if (await ConnectDeviceAsyncSliently(device))
-                {
-                    if (await LoadServices(device))
-                    {
-                        if (device.Name.Contains("HC"))
-                        {
-                            _service = await device.GetServiceAsync(serviceguidHC);
-
-                            Characteristic = await _service.GetCharacteristicAsync(wguid);//notify
-
-                            CharacteristicWrite = await _service.GetCharacteristicAsync(wguid);//write
-                        }
-
-                        if (device.Name.Contains("BLE"))
-                        {
-                            _service = await device.GetServiceAsync(serviceguidBLE);
-
-                            Characteristic = await _service.GetCharacteristicAsync(cguidBLE);//notify
-
-                            CharacteristicWrite = await _service.GetCharacteristicAsync(wguidBLE);//write
-                        }
-
-                        ConsoleOutput("get characteristics successfully.");
-
-                        Characteristic.ValueUpdated -= CharacteristicOnValueUpdated;
-                        Characteristic.ValueUpdated += CharacteristicOnValueUpdated;
-
-                        
-                        await Characteristic.StartUpdatesAsync();
-
-                        ConsoleOutput("start getting notification from notify characteristics.");
-
-
-                        //sending command
-
-                        var cmd = GetBytesForUTF8("L");
-
-                        var data = createHeader(TXMODE, PUT_TRANSACTION_RESULT);//GetBytes(result.Text);
-
-                        data = cmd;//for s8
-
-                        await CharacteristicWrite.WriteAsync(data);
-
-                        ConsoleOutput("sent command");
-                    }
-                }
             }
         }
 

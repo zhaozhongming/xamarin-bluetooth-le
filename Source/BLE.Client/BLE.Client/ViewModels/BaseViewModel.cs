@@ -8,13 +8,24 @@ using Plugin.BLE.Abstractions.Contracts;
 
 namespace BLE.Client.ViewModels
 {
+    public enum ModelType
+    {
+        FlowcomS8,
+        Flowcom3000
+    }
+
     public class BaseViewModel : MvxViewModel
     {
-        protected readonly IAdapter Adapter;
+        protected static IAdapter Adapter;
+        protected const string ModelTypeKey = "SelectedModelType";
         protected const string DeviceIdKey = "DeviceIdNavigationKey";
         protected const string ServiceIdKey = "ServiceIdNavigationKey";
         protected const string CharacteristicIdKey = "CharacteristicIdNavigationKey";
         protected const string DescriptorIdKey = "DescriptorIdNavigationKey";
+
+        protected ModelType SelectedModelType;
+
+        public string SelectedModelTypeName => SelectedModelType.ToString();
 
         public BaseViewModel(IAdapter adapter)
         {
