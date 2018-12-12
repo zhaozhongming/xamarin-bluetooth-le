@@ -750,6 +750,34 @@ namespace BLE.Client.ViewModels
             string dataString = new string(Encoding.UTF8.GetChars(Characteristic?.Value));
             dataString = "DATA: " + dataString.Replace("\r", "\r\n");// + dataString3.Replace("\r", "\r\n");
             ConsoleOutput(dataString);
+
+            //extract the reading
+            switch (SelectedModelType)
+            {
+                case ModelType.Flowcom3000:
+                    if (dataString.Contains("|"))
+                    {
+                        try
+                        {
+                            Reading = Convert.ToSingle(dataString.Split('|')[5].Trim());
+                            RaisePropertyChanged(() => Reading);
+                        }
+                        catch { }
+                    }
+                    break;
+                case ModelType.FlowcomS8:
+                    if (dataString.Contains(","))
+                    {
+                        try
+                        {
+                            Reading = Convert.ToSingle(dataString.Split(',')[2].Trim());
+                            RaisePropertyChanged(() => Reading);
+                        }
+                        catch { }
+                    }
+                    break;
+            }
+          
         }
 
         private byte[] createHeader(byte mode, byte opcode)
