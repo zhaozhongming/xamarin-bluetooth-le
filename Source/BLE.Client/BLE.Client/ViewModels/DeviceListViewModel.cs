@@ -310,24 +310,31 @@ namespace BLE.Client.ViewModels
 
         private async void TryStartScanning(bool refresh = false)
         {
-            if (Xamarin.Forms.Device.OS == Xamarin.Forms.TargetPlatform.Android)
+            try
             {
-                var status = await _permissions.CheckPermissionStatusAsync(Permission.Location);
-                if (status != PermissionStatus.Granted)
+                if (Xamarin.Forms.Device.OS == Xamarin.Forms.TargetPlatform.Android)
                 {
-                    var permissionResult = await _permissions.RequestPermissionsAsync(Permission.Location);
-
-                    if (permissionResult.First().Value != PermissionStatus.Granted)
+                    var status = await _permissions.CheckPermissionStatusAsync(Permission.Location);
+                    if (status != PermissionStatus.Granted)
                     {
-                        _userDialogs.ShowError("Permission denied. Not scanning.");
-                        return;
+                        var permissionResult = await _permissions.RequestPermissionsAsync(Permission.Location);
+
+                        if (permissionResult.First().Value != PermissionStatus.Granted)
+                        {
+                            _userDialogs.ShowError("Permission denied. Not scanning.");
+                            return;
+                        }
                     }
                 }
-            }
 
-            if (IsStateOn && (refresh || !Devices.Any()) && !IsRefreshing)
+                if (IsStateOn && (refresh || !Devices.Any()) && !IsRefreshing)
+                {
+                    ScanForDevices();
+                }
+            }
+            catch(Exception eScan)
             {
-                ScanForDevices();
+                ConsoleOutput(eScan.Message);
             }
         }
 
@@ -554,63 +561,70 @@ namespace BLE.Client.ViewModels
         {
             bool alreadyConnected = false;
 
-            if (Devices != null && Devices.Count > 0)
+            try
             {
-                knownId = Devices.OrderBy(i => i.Rssi).Last().Id;
-
-                IEnumerable<DeviceListItemViewModel> di = Devices.Where(r => r.IsConnected);
-                if (di != null && di.Count() > 0)
+                if (Devices != null && Devices.Count > 0)
                 {
-                    DeviceListItemViewModel alreadyConnectedDevice = di.First();
-                    if (alreadyConnectedDevice != null)
+                    knownId = Devices.OrderBy(i => i.Rssi).Last().Id;
+
+                    IEnumerable<DeviceListItemViewModel> di = Devices.Where(r => r.IsConnected);
+                    if (di != null && di.Count() > 0)
                     {
-                        alreadyConnected = true;
-                        knownId = alreadyConnectedDevice.Id;
-                        knownDevice = alreadyConnectedDevice.Device;
+                        DeviceListItemViewModel alreadyConnectedDevice = di.First();
+                        if (alreadyConnectedDevice != null)
+                        {
+                            alreadyConnected = true;
+                            knownId = alreadyConnectedDevice.Id;
+                            knownDevice = alreadyConnectedDevice.Device;
+                        }
                     }
                 }
-            }
-            
-            if (!alreadyConnected)
-            {
-                CancellationTokenSource tokenSource = new CancellationTokenSource();
 
-                knownDevice = await Adapter.ConnectToKnownDeviceAsync(knownId, new ConnectParameters(autoConnect: UseAutoConnect, forceBleTransport: false), tokenSource.Token);
-
-                ConsoleOutput(knownDevice.Name + " device connected.");
-            }
-
-            if (await LoadServices(knownDevice))
-            {
-                if (knownDevice.Name.Contains("HC"))
+                if (!alreadyConnected)
                 {
-                    _service = await knownDevice.GetServiceAsync(serviceguidHC);
+                    CancellationTokenSource tokenSource = new CancellationTokenSource();
 
-                    Characteristic = await _service.GetCharacteristicAsync(wguid);//notify
+                    knownDevice = await Adapter.ConnectToKnownDeviceAsync(knownId, new ConnectParameters(autoConnect: UseAutoConnect, forceBleTransport: false), tokenSource.Token);
 
-                    CharacteristicWrite = await _service.GetCharacteristicAsync(wguid);//write
+                    ConsoleOutput(knownDevice.Name + " device connected.");
                 }
 
-                if (knownDevice.Name.Contains("BLE"))
+                if (await LoadServices(knownDevice))
                 {
-                    _service = await knownDevice.GetServiceAsync(serviceguidBLE);
+                    if (knownDevice.Name.Contains("HC"))
+                    {
+                        _service = await knownDevice.GetServiceAsync(serviceguidHC);
 
-                    Characteristic = await _service.GetCharacteristicAsync(cguidBLE);//notify
+                        Characteristic = await _service.GetCharacteristicAsync(wguid);//notify
 
-                    CharacteristicWrite = await _service.GetCharacteristicAsync(wguidBLE);//write
+                        CharacteristicWrite = await _service.GetCharacteristicAsync(wguid);//write
+                    }
+
+                    if (knownDevice.Name.Contains("BLE"))
+                    {
+                        _service = await knownDevice.GetServiceAsync(serviceguidBLE);
+
+                        Characteristic = await _service.GetCharacteristicAsync(cguidBLE);//notify
+
+                        CharacteristicWrite = await _service.GetCharacteristicAsync(wguidBLE);//write
+                    }
+
+                    ConsoleOutput("get characteristics successfully.");
+
+                    Characteristic.ValueUpdated -= CharacteristicOnValueUpdated;
+                    Characteristic.ValueUpdated += CharacteristicOnValueUpdated;
+
+
+                    await Characteristic.StartUpdatesAsync();
+
+                    ConsoleOutput("start getting notification from notify characteristics.");
+
+                    SendCommand();
                 }
-
-                ConsoleOutput("get characteristics successfully.");
-
-                Characteristic.ValueUpdated -= CharacteristicOnValueUpdated;
-                Characteristic.ValueUpdated += CharacteristicOnValueUpdated;
-
-
-                await Characteristic.StartUpdatesAsync();
-
-                ConsoleOutput("start getting notification from notify characteristics.");
-
-                SendCommand();
+            }
+            catch(Exception eReading)
+            {
+                ConsoleOutput(eReading.Message);
             }
         }
 

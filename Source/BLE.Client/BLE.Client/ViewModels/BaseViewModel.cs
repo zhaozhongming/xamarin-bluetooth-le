@@ -5,6 +5,9 @@ using MvvmCross.Core.ViewModels;
 using MvvmCross.Platform;
 using Plugin.BLE.Abstractions;
 using Plugin.BLE.Abstractions.Contracts;
+using Xamarin.Forms.PlatformConfiguration;
+using Xamarin.Forms;
+using BLE.Client.Helpers;
 
 namespace BLE.Client.ViewModels
 {
@@ -25,6 +28,14 @@ namespace BLE.Client.ViewModels
 
         protected ModelType SelectedModelType;
 
+        public string AppVersion
+        {
+            get
+            {
+                return DependencyService.Get<IAppVersion>().GetVersion() + " " +
+                    DependencyService.Get<IAppVersion>().GetBuild();
+            }
+        }
         public string SelectedModelTypeName => SelectedModelType.ToString();
 
         public BaseViewModel(IAdapter adapter)

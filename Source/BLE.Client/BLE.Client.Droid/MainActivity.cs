@@ -8,6 +8,7 @@ using MvvmCross.Forms.Droid.Presenters;
 using MvvmCross.Platform;
 using Xamarin.Forms;
 using Xamarin.Forms.Platform.Android;
+using HockeyApp.Android;
 
 namespace BLE.Client.Droid
 {
@@ -31,6 +32,31 @@ namespace BLE.Client.Droid
             presenter.FormsApplication = formsApp;
 
             Mvx.Resolve<IMvxAppStart>().Start();
+
+            CheckForUpdates();
+        }
+
+        private void CheckForUpdates()
+        {
+            // Remove this for store builds!
+            UpdateManager.Register(this, "1c1a19787de146dbbee650f7744df94a");
+        }
+
+        private void UnregisterManagers()
+        {
+            UpdateManager.Unregister();
+        }
+
+        protected override void OnPause()
+        {
+            base.OnPause();
+            UnregisterManagers();
+        }
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            UnregisterManagers();
         }
     }
 }
