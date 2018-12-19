@@ -7,6 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Acr.UserDialogs;
 using BLE.Client.Extensions;
+using BLE.Client.Helpers;
+using Microsoft.AppCenter.Analytics;
 using MvvmCross.Core.ViewModels;
 using MvvmCross.Platform;
 using Plugin.BLE.Abstractions;
@@ -175,6 +177,11 @@ namespace BLE.Client.ViewModels
             Adapter.DeviceConnectionLost += OnDeviceConnectionLost;
             //Adapter.DeviceConnected += (sender, e) => Adapter.DisconnectDeviceAsync(e.Device);
 
+            Analytics.TrackEvent("test trace for app center", new Dictionary<string, string> {
+                        { "User", "zhaoz1"},
+                        { "Date", DateTime.Now.Date.ToString("MM/dd/yyyy HH:mm tt")},
+                        { "AppID", "1c1a19787de146dbbee650f7744df94a" }
+                       });
         }
 
         public override void ViewDisappearing()
@@ -791,7 +798,12 @@ namespace BLE.Client.ViewModels
                     }
                     break;
             }
-          
+
+            //save the data to azure storage
+            Reading rdata = new Reading();
+            rdata.ReadingValue = Reading;
+
+            Task.Run(() => StorageHelper.Write(rdata));
         }
 
         private byte[] createHeader(byte mode, byte opcode)
