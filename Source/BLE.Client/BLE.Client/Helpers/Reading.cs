@@ -10,6 +10,7 @@ namespace BLE.Client.Helpers
     public class Reading : TableEntity
     {
         public DateTime ReadingTime { get; set; }
-        public float ReadingValue { get; set; }
+
+        public string ReadingValue { get; set; }
     }
 }

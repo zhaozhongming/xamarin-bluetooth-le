@@ -19,6 +19,15 @@ namespace BLE.Client.Pages
                 bindingContext.ViewDisappearing();
 
         }
-      
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
+
+            var bindingContext = BindingContext as BaseViewModel;
+
+            if (bindingContext != null)
+                bindingContext.ViewAppearing();
+
+        }
     }
 }

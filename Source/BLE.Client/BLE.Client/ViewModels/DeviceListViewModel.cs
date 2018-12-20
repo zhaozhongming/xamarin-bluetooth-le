@@ -42,6 +42,8 @@ namespace BLE.Client.ViewModels
 
         private Guid knownId = new Guid("00000000-0000-0000-0000-cc81d47f7569 ");
 
+        private List<Guid> allowedDevices = new List<Guid>();
+
         public MvxCommand RefreshCommand => new MvxCommand(() => TryStartScanning(true));
         public MvxCommand<DeviceListItemViewModel> DisconnectCommand => new MvxCommand<DeviceListItemViewModel>(DisconnectDevice);
 
@@ -119,6 +121,8 @@ namespace BLE.Client.ViewModels
 
         public IList<IService> Services { get; private set; }
 
+        public bool FindDevice { get; set; }
+
         const string serviceidHC = "0000ffe0-0000-1000-8000-00805f9b34fb";//taobeo HC-42
         static readonly Guid serviceguidHC = new Guid(serviceidHC);
         const string cidHC = "0000ffe1-0000-1000-8000-00805f9b34fb";//taobao bluetooth HC-42
@@ -177,11 +181,20 @@ namespace BLE.Client.ViewModels
             Adapter.DeviceConnectionLost += OnDeviceConnectionLost;
             //Adapter.DeviceConnected += (sender, e) => Adapter.DisconnectDeviceAsync(e.Device);
 
-            Analytics.TrackEvent("test trace for app center", new Dictionary<string, string> {
-                        { "User", "zhaoz1"},
-                        { "Date", DateTime.Now.Date.ToString("MM/dd/yyyy HH:mm tt")},
-                        { "AppID", "1c1a19787de146dbbee650f7744df94a" }
-                       });
+            //Analytics.TrackEvent("test trace for app center", new Dictionary<string, string> {
+            //            { "User", "zhaoz1"},
+            //            { "Date", DateTime.Now.Date.ToString("MM/dd/yyyy HH:mm tt")},
+            //            { "AppID", "1c1a19787de146dbbee650f7744df94a" }
+            //           });
+
+            allowedDevices.Add(knownId);
+
+            FindDevice = false;
+        }
+
+        public override void ViewAppearing()
+        {
+            //TryStartScanning(true);
         }
 
         public override void ViewDisappearing()
@@ -268,6 +281,8 @@ namespace BLE.Client.ViewModels
             {
                 StopScanCommand.Execute();
                 AddOrUpdateDevice(args.Device);
+                FindDevice = true;
+                RaisePropertyChanged(() => FindDevice);
             }
         }
 
@@ -348,7 +363,8 @@ namespace BLE.Client.ViewModels
         private async void ScanForDevices()
         {
             ConsoleOutput("start scanning devices.....");
-
+            FindDevice = false;
+            RaisePropertyChanged(() => FindDevice);
             Devices.Clear();
 
             foreach (var connectedDevice in Adapter.ConnectedDevices)
@@ -416,7 +432,7 @@ namespace BLE.Client.ViewModels
                     try
                     {
                         if (!cDevice.IsConnected)
-                            return;
+                            break;
                         ConsoleOutput("Disconnect divice - " + cDevice.Name);
                         await Adapter.DisconnectDeviceAsync(cDevice.Device);
 
@@ -572,7 +588,10 @@ namespace BLE.Client.ViewModels
             {
                 if (Devices != null && Devices.Count > 0)
                 {
-                    knownId = Devices.OrderBy(i => i.Rssi).Last().Id;
+                    knownId = (from d1 in Devices
+                              join d2 in allowedDevices
+                              on d1.Device.Id equals (Guid)d2
+                              select new { d1.Id, d1.Rssi }).OrderBy(i => i.Rssi).Last().Id;
 
                     IEnumerable<DeviceListItemViewModel> di = Devices.Where(r => r.IsConnected);
                     if (di != null && di.Count() > 0)
@@ -782,6 +801,11 @@ namespace BLE.Client.ViewModels
                         {
                             Reading = Convert.ToSingle(dataString.Split('|')[5].Trim());
                             RaisePropertyChanged(() => Reading);
+                            //save the data to azure storage
+                            Reading rdata = new Reading();
+                            rdata.ReadingValue = Reading.ToString();
+
+                            Task.Run(() => StorageHelper.Write(rdata));
                         }
                         catch { }
                     }
@@ -793,17 +817,16 @@ namespace BLE.Client.ViewModels
                         {
                             Reading = Convert.ToSingle(dataString.Split(',')[2].Trim());
                             RaisePropertyChanged(() => Reading);
+                            //save the data to azure storage
+                            Reading rdata = new Reading();
+                            rdata.ReadingValue = Reading.ToString();
+
+                            Task.Run(() => StorageHelper.Write(rdata));
                         }
                         catch { }
                     }
                     break;
             }
-
-            //save the data to azure storage
-            Reading rdata = new Reading();
-            rdata.ReadingValue = Reading;
-
-            Task.Run(() => StorageHelper.Write(rdata));
         }
 
         private byte[] createHeader(byte mode, byte opcode)
