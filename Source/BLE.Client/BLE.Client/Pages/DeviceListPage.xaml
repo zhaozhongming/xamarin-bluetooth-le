@@ -52,7 +52,7 @@
              HorizontalTextAlignment="Center"></Label>
         
         <StackLayout Grid.Row="1" Orientation="Horizontal">
-          <Button Text="Get Reading" Command="{Binding ConnectKnownCommand}" HorizontalOptions="End" IsEnabled="{Binding FindDevice}"/>
+          <Button Text="Get Reading" Command="{Binding ConnectKnownCommand}" HorizontalOptions="End" IsEnabled="true"/>
           <Button Text="Disconnect" Command="{Binding DisconnectKnownCommandSliently}" HorizontalOptions="End"/>
           <ActivityIndicator IsRunning="{Binding IsRefreshing}"
                              HeightRequest="24"
